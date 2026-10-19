@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "ClipMint — Media Saver & Editor",
+  "short_name": "ClipMint",
+  "description": "A clean, browser-based media saver and editor.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8f4e8",
+  "theme_color": "#f8f4e8",
+  "categories": ["utilities", "photo", "video"],
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"},
+    {"src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any"}
+  ]
+}

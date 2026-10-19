@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f4e8">
+  <meta name="description" content="A clean, browser-based media saver and image editor.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ClipMint">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <title>ClipMint — save a little good</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui']}}}}</script>
+  <style>
+    :root{--ink:#171714;--cream:#f8f4e8;--mint:#a8e6cf;--lime:#c8ef70;--lav:#d8c8ff;--coral:#ffb9a8}
+    *{box-sizing:border-box} body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+    .hard{border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+    .hard-sm{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+    .press{transition:transform .12s ease,box-shadow .12s ease}.press:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}.press:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+    .focus-ring:focus{outline:3px solid var(--lime);outline-offset:3px}
+    dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1040px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
+    .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;max-height:64vh;object-fit:contain;background:#191919;touch-action:none}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:45vh}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body class="min-h-screen">
+  <main class="min-h-[100svh] flex flex-col items-center justify-center px-5 py-8">
+    <div class="w-full max-w-2xl">
+      <header class="mb-8 flex items-center justify-center gap-3 text-center">
+        <span aria-hidden="true" class="grid h-12 w-12 place-items-center rounded-xl border-[3px] border-black bg-[#a8e6cf] shadow-[3px_3px_0_#171714]">
+          <svg width="27" height="27" viewBox="0 0 28 28" fill="none"><path d="M7 4.5h10l5 5v14H7a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2Z" fill="#fff" stroke="#171714" stroke-width="2.4" stroke-linejoin="round"/><path d="M16.5 4.8v5h5M9 15h10M9 19h7" stroke="#171714" stroke-width="2.4" stroke-linecap="round"/><circle cx="20" cy="20" r="4" fill="#C8EF70" stroke="#171714" stroke-width="2"/></svg>
+        </span>
+        <div><h1 class="text-4xl font-black tracking-[-.06em] sm:text-5xl">ClipMint<span class="text-[#44866d]">.</span></h1><p class="mt-1 text-sm font-semibold text-black/60">Save a little good.</p></div>
+      </header>
+
+      <section aria-label="Media link downloader" class="rounded-2xl bg-white p-5 sm:p-7 hard">
+        <label for="urlInput" class="mb-3 block text-sm font-extrabold uppercase tracking-wider">Drop a link. Get your media.</label>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input id="urlInput" class="focus-ring min-w-0 flex-1 rounded-xl border-[3px] border-black bg-[#fbfaf5] px-4 py-4 text-base font-semibold placeholder:text-black/35" type="url" inputmode="url" autocomplete="url" placeholder="Paste a YouTube, Instagram, X or Facebook link" aria-describedby="status" required>
+          <button id="parseButton" class="press focus-ring min-h-[58px] rounded-xl border-[3px] border-black bg-[#c8ef70] px-7 py-4 text-base font-black shadow-[4px_4px_0_#171714] disabled:cursor-wait disabled:opacity-65" type="button">Get media <span aria-hidden="true">↗</span></button>
+        </div>
+        <p id="status" class="mt-4 min-h-5 text-sm font-semibold text-black/65" role="status" aria-live="polite">Your links stay on this device; downloads depend on the source platform’s access rules.</p>
+      </section>
+
+      <section id="resultCard" class="mt-6 hidden rounded-2xl bg-[#dff4e9] p-4 hard" aria-live="polite">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0"><p class="text-xs font-black uppercase tracking-widest">Ready to save</p><h2 id="mediaTitle" class="mt-1 truncate text-lg font-extrabold">Your media</h2></div>
+          <div class="flex shrink-0 gap-3">
+            <button id="editButton" class="press hard-sm rounded-lg bg-white px-4 py-3 text-sm font-extrabold">Edit preview</button>
+            <a id="downloadButton" class="press hard-sm inline-flex items-center rounded-lg bg-[#c8ef70] px-4 py-3 text-sm font-extrabold" href="#">Download</a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="mt-7 text-center text-xs font-medium text-black/45">Made for your own media and links you have permission to save.</footer>
+    </div>
+  </main>
+
+  <dialog id="editorDialog" aria-labelledby="editorHeading">
+    <div class="flex max-h-[calc(100dvh-30px)] flex-col">
+      <div class="flex items-center justify-between gap-3 border-b-[3px] border-black px-4 py-3 sm:px-5">
+        <div class="min-w-0"><h2 id="editorHeading" class="text-lg font-black">Quick edit</h2><p id="editorNote" class="text-xs font-semibold text-black/55">Image edits export as a new file. Video edits are preview-only.</p></div>
+        <button id="closeEditor" class="hard-sm grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-xl font-black" aria-label="Close editor">×</button>
+      </div>
+      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[1fr_290px]">
+        <div class="flex min-h-52 items-center justify-center bg-[#252520] p-3"><canvas id="editorCanvas" aria-label="Media editor preview"></canvas><video id="sourceVideo" class="hidden" playsinline controls preload="metadata"></video><img id="sourceImage" class="hidden" alt="Source media preview"></div>
+        <aside class="space-y-4 p-4 sm:p-5">
+          <div><p class="mb-2 text-xs font-black uppercase tracking-wider">Crop shape</p><div class="grid grid-cols-3 gap-2"><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="16:9">16:9</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="9:16">9:16</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="1:1">1:1</button></div></div>
+          <div><label for="overlayText" class="mb-2 block text-xs font-black uppercase tracking-wider">Text overlay</label><input id="overlayText" class="focus-ring w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-semibold" maxlength="80" placeholder="Type something…"></div>
+          <div><p class="mb-2 text-xs font-black uppercase tracking-wider">Looks</p><div class="grid grid-cols-3 gap-2"><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="none">Original</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="grayscale">Mono</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="sepia">Vintage</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="contrast">Contrast</button></div></div>
+          <div><label class="flex items-start gap-2 text-sm font-semibold"><input id="brushToggle" class="mt-1 accent-black" type="checkbox"><span><strong class="font-extrabold">Soft mask brush</strong><br><span class="text-xs text-black/55">Paint to blur an area; this does not recover hidden pixels.</span></span></label><input id="brushSize" class="mt-2 w-full accent-black" type="range" min="12" max="100" value="36" aria-label="Brush size"></div>
+          <div id="videoControls" class="hidden"><button id="playButton" class="hard-sm w-full rounded-lg bg-[#d8c8ff] px-3 py-2 text-sm font-extrabold">Play preview</button></div>
+          <div class="flex gap-2"><button id="undoButton" class="hard-sm flex-1 rounded-lg bg-white px-3 py-2 text-sm font-extrabold">Reset edits</button><button id="exportButton" class="press hard-sm flex-1 rounded-lg bg-[#c8ef70] px-3 py-2 text-sm font-extrabold">Export image</button></div>
+          <p id="exportHint" class="text-xs font-semibold text-black/55">Video: preview changes only. Download the original media above.</p>
+        </aside>
+      </div>
+    </div>
+  </dialog>
+  <script src="/app.js" defer></script>
+</body>
+</html>
