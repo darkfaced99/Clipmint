@@ -80,10 +80,22 @@
       : `hue-rotate(${(state.warmth * .12).toFixed(1)}deg)`;
     return `${base} brightness(${state.brightness}%) contrast(${state.contrast}%) saturate(${state.saturation}%) ${warmth}`.trim();
   }
+  function drawLoadingPreview() {
+    if (!canvas.width || !canvas.height) return;
+    ctx.save();
+    ctx.filter = 'none';
+    ctx.fillStyle = '#191919'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f8f4e8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const size = Math.max(16, Math.min(28, Math.round(canvas.width * .045)));
+    ctx.font = `700 ${size}px system-ui,sans-serif`;
+    ctx.fillText('Loading video preview…', canvas.width / 2, canvas.height / 2, canvas.width * .9);
+    ctx.restore();
+  }
   function drawSource() {
     const source = currentSource();
     const { w, h } = dimensions();
     if (!source || !w || !h) return;
+    if (state.kind === 'video' && video.readyState < 2) { drawLoadingPreview(); return; }
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.filter = filterString();
@@ -200,7 +212,7 @@
     $('#closeEditor').focus();
   }
   function releaseEditorMedia() {
-    video.onloadedmetadata = null; video.onseeked = null; video.onplay = null; video.onpause = null;
+    video.onloadedmetadata = null; video.onloadeddata = null; video.oncanplay = null; video.onseeked = null; video.onplay = null; video.onpause = null;
     video.onerror = null; video.ontimeupdate = null; video.onended = null;
     image.onload = null; image.onerror = null;
     video.pause(); video.removeAttribute('src'); video.load();
@@ -241,13 +253,23 @@
         image.src = src;
         if (image.complete && image.naturalWidth) { setCanvasSize(); render(); }
       } else {
+        const mediaWidth = Number(state.media.width) || 640, mediaHeight = Number(state.media.height) || 360;
+        const previewScale = Math.min(1, 1400 / Math.max(mediaWidth, mediaHeight));
+        canvas.width = Math.max(1, Math.round(mediaWidth * previewScale));
+        canvas.height = Math.max(1, Math.round(mediaHeight * previewScale));
+        drawLoadingPreview();
         video.controls = true; video.playsInline = true;
         $('#videoControls').classList.remove('hidden');
         video.onloadedmetadata = () => {
           setCanvasSize(); state.trimEnd = video.duration;
           $('#trimEnd').value = Number.isFinite(video.duration) ? video.duration.toFixed(1) : '0';
           render();
+          if (video.readyState < 2 && Number.isFinite(video.duration) && video.duration > 0) {
+            try { video.currentTime = Math.min(.05, video.duration / 2); } catch (_) {}
+          }
         };
+        video.onloadeddata = () => render();
+        video.oncanplay = () => render();
         video.onseeked = () => render();
         video.onplay = () => { video.playbackRate = state.speed; cancelAnimationFrame(state.animation); animate(); $('#playButton').textContent = 'Pause preview'; };
         video.onpause = () => { cancelAnimationFrame(state.animation); render(); $('#playButton').textContent = 'Play preview'; };
