@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f8f4e8">
-  <meta name="description" content="A clean, browser-based media saver and image editor.">
+  <meta name="description" content="A clean, browser-based media saver and editor.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ClipMint">
@@ -21,10 +21,15 @@
     .hard-sm{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
     .press{transition:transform .12s ease,box-shadow .12s ease}.press:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}.press:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
     .focus-ring:focus{outline:3px solid var(--lime);outline-offset:3px}
-    dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1040px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
-    .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;max-height:64vh;object-fit:contain;background:#191919;touch-action:none}
+    dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1240px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
+    .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;max-height:68vh;object-fit:contain;background:#191919;touch-action:none}
+    .editor-group{border:2px solid var(--ink);border-radius:12px;padding:12px;background:#fff}
+    .editor-group h3{margin:0 0 9px;font-size:11px;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+    .editor-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:800}
+    .editor-range{width:100%;accent-color:#171714}
+    .editor-select{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fbfaf5;padding:7px 9px;font-weight:700}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:45vh}}
+    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:42vh}dialog{max-height:calc(100dvh - 12px);max-width:calc(100vw - 12px)}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -51,8 +56,8 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div class="min-w-0"><p class="text-xs font-black uppercase tracking-widest">Ready to save</p><h2 id="mediaTitle" class="mt-1 truncate text-lg font-extrabold">Your media</h2></div>
           <div class="flex shrink-0 gap-3">
-            <button id="editButton" class="press hard-sm rounded-lg bg-white px-4 py-3 text-sm font-extrabold">Edit preview</button>
-            <a id="downloadButton" class="press hard-sm inline-flex items-center rounded-lg bg-[#c8ef70] px-4 py-3 text-sm font-extrabold" href="#">Download</a>
+            <button id="editButton" class="press hard-sm rounded-lg bg-white px-4 py-3 text-sm font-extrabold" type="button">Edit preview</button>
+            <a id="downloadButton" class="press hard-sm inline-flex items-center rounded-lg bg-[#c8ef70] px-4 py-3 text-sm font-extrabold" href="#">Download original</a>
           </div>
         </div>
       </section>
@@ -64,19 +69,80 @@
   <dialog id="editorDialog" aria-labelledby="editorHeading">
     <div class="flex max-h-[calc(100dvh-30px)] flex-col">
       <div class="flex items-center justify-between gap-3 border-b-[3px] border-black px-4 py-3 sm:px-5">
-        <div class="min-w-0"><h2 id="editorHeading" class="text-lg font-black">Quick edit</h2><p id="editorNote" class="text-xs font-semibold text-black/55">Image edits export as a new file. Video edits are preview-only.</p></div>
-        <button id="closeEditor" class="hard-sm grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-xl font-black" aria-label="Close editor">×</button>
+        <div class="min-w-0"><h2 id="editorHeading" class="text-lg font-black">Quick edit</h2><p id="editorNote" class="text-xs font-semibold text-black/55">Make a new edited copy in this browser.</p></div>
+        <button id="closeEditor" class="hard-sm grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-xl font-black" aria-label="Close editor" type="button">×</button>
       </div>
-      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[1fr_290px]">
+      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_370px]">
         <div class="flex min-h-52 items-center justify-center bg-[#252520] p-3"><canvas id="editorCanvas" aria-label="Media editor preview"></canvas><video id="sourceVideo" class="hidden" playsinline controls preload="metadata"></video><img id="sourceImage" class="hidden" alt="Source media preview"></div>
-        <aside class="space-y-4 p-4 sm:p-5">
-          <div><p class="mb-2 text-xs font-black uppercase tracking-wider">Crop shape</p><div class="grid grid-cols-3 gap-2"><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="16:9">16:9</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="9:16">9:16</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-sm font-bold" data-ratio="1:1">1:1</button></div></div>
-          <div><label for="overlayText" class="mb-2 block text-xs font-black uppercase tracking-wider">Text overlay</label><input id="overlayText" class="focus-ring w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-semibold" maxlength="80" placeholder="Type something…"></div>
-          <div><p class="mb-2 text-xs font-black uppercase tracking-wider">Looks</p><div class="grid grid-cols-3 gap-2"><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="none">Original</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="grayscale">Mono</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="sepia">Vintage</button><button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-filter="contrast">Contrast</button></div></div>
-          <div><label class="flex items-start gap-2 text-sm font-semibold"><input id="brushToggle" class="mt-1 accent-black" type="checkbox"><span><strong class="font-extrabold">Soft mask brush</strong><br><span class="text-xs text-black/55">Paint to blur an area; this does not recover hidden pixels.</span></span></label><input id="brushSize" class="mt-2 w-full accent-black" type="range" min="12" max="100" value="36" aria-label="Brush size"></div>
-          <div id="videoControls" class="hidden"><button id="playButton" class="hard-sm w-full rounded-lg bg-[#d8c8ff] px-3 py-2 text-sm font-extrabold">Play preview</button></div>
-          <div class="flex gap-2"><button id="undoButton" class="hard-sm flex-1 rounded-lg bg-white px-3 py-2 text-sm font-extrabold">Reset edits</button><button id="exportButton" class="press hard-sm flex-1 rounded-lg bg-[#c8ef70] px-3 py-2 text-sm font-extrabold">Export image</button></div>
-          <p id="exportHint" class="text-xs font-semibold text-black/55">Video: preview changes only. Download the original media above.</p>
+        <aside class="space-y-3 p-3 sm:p-4" aria-label="Editing tools">
+          <section class="editor-group">
+            <h3>Crop & transform</h3>
+            <div class="grid grid-cols-4 gap-2">
+              <button class="tool hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" data-ratio="original" type="button">Original</button>
+              <button class="tool hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" data-ratio="1:1" type="button">1:1</button>
+              <button class="tool hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" data-ratio="4:5" type="button">4:5</button>
+              <button class="tool hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" data-ratio="16:9" type="button">16:9</button>
+              <button class="tool hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" data-ratio="9:16" type="button">9:16</button>
+              <button id="rotateLeft" class="hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" type="button" aria-label="Rotate left 90 degrees">↶ Rotate</button>
+              <button id="rotateRight" class="hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" type="button" aria-label="Rotate right 90 degrees">↷ Rotate</button>
+              <button id="flipHorizontal" class="hard-sm rounded-lg bg-white px-1 py-2 text-xs font-bold" type="button">Flip</button>
+            </div>
+          </section>
+
+          <section class="editor-group">
+            <h3>Looks</h3>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="original" type="button">Original</button>
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="mono" type="button">Mono</button>
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="warm" type="button">Warm</button>
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="film" type="button">Film</button>
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="pop" type="button">Pop</button>
+              <button class="tool hard-sm rounded-lg bg-white px-2 py-2 text-xs font-bold" data-look="fade" type="button">Fade</button>
+            </div>
+            <div class="mt-3 space-y-2">
+              <label class="editor-label" for="brightness">Brightness <output id="brightnessValue">100%</output></label><input id="brightness" class="editor-range" type="range" min="50" max="150" value="100">
+              <label class="editor-label" for="contrast">Contrast <output id="contrastValue">100%</output></label><input id="contrast" class="editor-range" type="range" min="50" max="150" value="100">
+              <label class="editor-label" for="saturation">Saturation <output id="saturationValue">100%</output></label><input id="saturation" class="editor-range" type="range" min="0" max="200" value="100">
+              <label class="editor-label" for="warmth">Warmth <output id="warmthValue">0</output></label><input id="warmth" class="editor-range" type="range" min="-100" max="100" value="0">
+            </div>
+          </section>
+
+          <section class="editor-group">
+            <h3>Text & captions</h3>
+            <input id="overlayText" class="focus-ring w-full rounded-lg border-2 border-black bg-[#fbfaf5] px-3 py-2 text-sm font-semibold" maxlength="120" placeholder="Type a caption…" aria-label="Text overlay">
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <label class="text-xs font-bold">Font<select id="textFont" class="editor-select mt-1"><option value="system-ui,sans-serif">Clean</option><option value="Georgia,serif">Serif</option><option value="ui-monospace,monospace">Mono</option></select></label>
+              <label class="text-xs font-bold">Position<select id="textPosition" class="editor-select mt-1"><option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option></select></label>
+              <label class="text-xs font-bold">Alignment<select id="textAlign" class="editor-select mt-1"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></label>
+              <label class="text-xs font-bold">Text color<input id="textColor" class="mt-1 h-9 w-full cursor-pointer rounded-lg border-2 border-black bg-white p-1" type="color" value="#ffffff"></label>
+            </div>
+            <div class="mt-2">
+              <label class="editor-label" for="textSize">Size <output id="textSizeValue">5.5%</output></label><input id="textSize" class="editor-range" type="range" min="2" max="10" step="0.5" value="5.5">
+              <div class="mt-2 flex flex-wrap gap-4 text-xs font-bold"><label class="flex items-center gap-2"><input id="outlineText" type="checkbox" checked> Dark outline</label><label class="flex items-center gap-2"><input id="textBackground" type="checkbox"> Solid caption box</label></div>
+            </div>
+          </section>
+
+          <section id="videoControls" class="editor-group hidden">
+            <h3>Video timing</h3>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-xs font-bold">Start (sec)<input id="trimStart" class="editor-select mt-1" type="number" min="0" step="0.1" value="0"></label>
+              <label class="text-xs font-bold">End (sec)<input id="trimEnd" class="editor-select mt-1" type="number" min="0" step="0.1" value="0"></label>
+            </div>
+            <div class="mt-2 flex gap-2"><button id="playButton" class="hard-sm flex-1 rounded-lg bg-[#d8c8ff] px-3 py-2 text-sm font-extrabold" type="button">Play preview</button><label class="flex items-center gap-2 text-xs font-bold">Speed<select id="playbackSpeed" class="editor-select w-auto"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label></div>
+            <p class="mt-2 text-[11px] font-semibold text-black/55">Trim and speed apply to exported video. Cleanup uses a fixed mask, so it works best on a stationary corner logo.</p>
+          </section>
+
+          <section class="editor-group bg-[#fff8e8]">
+            <h3>Content-aware cleanup</h3>
+            <label class="flex items-start gap-2 text-xs font-semibold"><input id="rightsConfirm" class="mt-0.5 accent-black" type="checkbox"><span>I own this media or have permission to edit it. Cleanup synthesizes a plausible fill; it cannot recover pixels covered by the mark.</span></label>
+            <label class="mt-2 flex items-center gap-2 text-sm font-extrabold"><input id="cleanupToggle" class="accent-black" type="checkbox"><span>Paint the area to remove</span></label>
+            <label class="editor-label mt-2" for="brushSize">Brush size <output id="brushSizeValue">36 px</output></label><input id="brushSize" class="editor-range" type="range" min="12" max="100" value="36">
+            <div class="mt-2 grid grid-cols-3 gap-2"><button id="undoStroke" class="hard-sm rounded-lg bg-white px-2 py-2 text-xs font-extrabold" type="button">Undo mark</button><button id="clearMask" class="hard-sm rounded-lg bg-white px-2 py-2 text-xs font-extrabold" type="button">Clear marks</button><button id="cleanButton" class="press hard-sm rounded-lg bg-[#ffb9a8] px-2 py-2 text-xs font-extrabold" type="button">Clean area</button></div>
+            <p id="cleanupStatus" class="mt-2 text-[11px] font-semibold text-black/55" role="status" aria-live="polite">The optional cleanup engine loads only when used (about 11 MB). Processing stays in this browser; video masks are fixed in place.</p>
+          </section>
+
+          <div class="flex gap-2"><button id="resetButton" class="hard-sm flex-1 rounded-lg bg-white px-3 py-2 text-sm font-extrabold" type="button">Reset all</button><button id="exportButton" class="press hard-sm flex-1 rounded-lg bg-[#c8ef70] px-3 py-2 text-sm font-extrabold" type="button">Export image</button></div>
+          <p id="exportHint" class="text-xs font-semibold text-black/55">Edited copies are created in this browser. Keep this tab open during video export.</p>
         </aside>
       </div>
     </div>
