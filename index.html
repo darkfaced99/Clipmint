@@ -21,17 +21,26 @@
     .hard-sm{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
     .press{transition:transform .12s ease,box-shadow .12s ease}.press:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}.press:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
     .focus-ring:focus{outline:3px solid var(--lime);outline-offset:3px}
-    dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1240px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
+    dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1240px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}
+    dialog#editorDialog{width:min(1240px,calc(100vw - 24px));height:min(920px,calc(100dvh - 24px));max-width:none;max-height:none;overflow:hidden}
+    dialog#editorDialog.editor-fallback{width:min(1240px,calc(100vw - 24px));height:calc(100dvh - 24px);max-width:none;max-height:none;overflow:hidden}
+    dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
     body.editor-fallback-active::before{content:"";position:fixed;inset:0;z-index:9998;background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
-    dialog.editor-fallback{display:block;position:fixed;inset:12px;margin:auto;z-index:9999;overflow-y:auto;max-height:calc(100dvh - 24px)}
-    .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;max-height:68vh;object-fit:contain;background:#191919;touch-action:none}
+    dialog.editor-fallback{display:block;position:fixed;inset:12px;margin:auto;z-index:9999}
+    .editor-shell{display:flex;flex-direction:column;width:100%;height:100%;min-width:0;min-height:0}
+    .editor-header{flex:0 0 auto}
+    .editor-layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;grid-template-rows:minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
+    .editor-preview-panel{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;background:#252520;padding:12px}
+    .editor-tools-panel{min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+    .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;height:auto;max-height:min(68vh,100%);object-fit:contain;background:#191919;touch-action:none}
     .editor-group{border:2px solid var(--ink);border-radius:12px;padding:12px;background:#fff}
     .editor-group h3{margin:0 0 9px;font-size:11px;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
     .editor-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:800}
     .editor-range{width:100%;accent-color:#171714}
     .editor-select{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fbfaf5;padding:7px 9px;font-weight:700}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:42vh}dialog{max-height:calc(100dvh - 12px);max-width:calc(100vw - 12px)}dialog.editor-fallback{inset:6px;max-height:calc(100dvh - 12px)}}
+    @media(max-width:1023px){.editor-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:min(42dvh,360px) minmax(0,1fr)}.editor-preview-panel{padding:8px}.editor-tools-panel{border-top:3px solid var(--ink)}}
+    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:min(42dvh,100%)}dialog{max-height:calc(100dvh - 12px);max-width:calc(100vw - 12px)}dialog#editorDialog,dialog#editorDialog.editor-fallback{width:calc(100vw - 12px);height:calc(100dvh - 12px)}dialog.editor-fallback{inset:6px}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -69,14 +78,14 @@
   </main>
 
   <dialog id="editorDialog" aria-labelledby="editorHeading">
-    <div class="flex max-h-[calc(100dvh-30px)] flex-col">
-      <div class="flex items-center justify-between gap-3 border-b-[3px] border-black px-4 py-3 sm:px-5">
+    <div class="editor-shell">
+      <div class="editor-header flex items-center justify-between gap-3 border-b-[3px] border-black px-4 py-3 sm:px-5">
         <div class="min-w-0"><h2 id="editorHeading" class="text-lg font-black">Quick edit</h2><p id="editorNote" class="text-xs font-semibold text-black/55">Make a new edited copy in this browser.</p></div>
         <button id="closeEditor" class="hard-sm grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-xl font-black" aria-label="Close editor" type="button">×</button>
       </div>
-      <div class="grid min-h-0 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_370px]">
-        <div class="flex min-h-52 items-center justify-center bg-[#252520] p-3"><canvas id="editorCanvas" aria-label="Media editor preview"></canvas><video id="sourceVideo" class="hidden" playsinline controls preload="metadata"></video><img id="sourceImage" class="hidden" alt="Source media preview"></div>
-        <aside class="space-y-3 p-3 sm:p-4" aria-label="Editing tools">
+      <div id="editorLayout" class="editor-layout">
+        <div id="editorPreviewPanel" class="editor-preview-panel"><canvas id="editorCanvas" aria-label="Media editor preview"></canvas><video id="sourceVideo" class="hidden" playsinline controls preload="metadata"></video><img id="sourceImage" class="hidden" alt="Source media preview"></div>
+        <aside id="editorToolsPanel" class="editor-tools-panel space-y-3 p-3 sm:p-4" aria-label="Editing tools">
           <section class="editor-group">
             <h3>Crop & transform</h3>
             <div class="grid grid-cols-4 gap-2">
@@ -149,6 +158,6 @@
       </div>
     </div>
   </dialog>
-  <script src="/app.js?v=4" defer></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>
