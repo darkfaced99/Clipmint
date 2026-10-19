@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import shutil
 import socket
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -57,12 +58,29 @@ def choose_format(info: dict[str, Any]) -> dict[str, Any] | None:
     return candidates[0] if candidates else None
 
 
+def safe_source_headers(value: Any) -> dict[str, str]:
+    allowed = {"user-agent": "User-Agent", "accept": "Accept", "accept-language": "Accept-Language", "referer": "Referer", "origin": "Origin"}
+    if not isinstance(value, dict):
+        return {}
+    headers = {}
+    for key, item in value.items():
+        canonical = allowed.get(str(key).lower())
+        if not canonical or item is None:
+            continue
+        text = str(item).strip()
+        if text and "\r" not in text and "\n" not in text:
+            headers[canonical] = text
+    return headers
+
+
 def media_headers(entry: dict[str, Any]) -> dict[str, str]:
-    headers = {"User-Agent": USER_AGENT}
+    headers = safe_source_headers(entry.get("http_headers"))
+    headers.setdefault("User-Agent", USER_AGENT)
+    headers.setdefault("Accept-Encoding", "identity")
     if entry.get("referer"):
-        headers["Referer"] = entry["referer"]
+        headers.setdefault("Referer", entry["referer"])
     if entry.get("origin"):
-        headers["Origin"] = entry["origin"]
+        headers.setdefault("Origin", entry["origin"])
     return headers
 
 
@@ -124,8 +142,10 @@ def extract():
         # separate audio/video streams that this lightweight proxy cannot mux.
         "format": "best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[acodec!=none][vcodec!=none]/best",
         "socket_timeout": 15, "retries": 1, "extractor_retries": 1,
-        "http_headers": {"User-Agent": USER_AGENT},
     }
+    node_path = shutil.which("node")
+    if node_path:
+        opts["js_runtimes"] = {"node": {"path": node_path}}
     try:
         with YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -142,6 +162,7 @@ def extract():
             "mime": fmt.get("mime_type") or info.get("mime_type") or "video/mp4",
             "ext": fmt.get("ext") or info.get("ext") or "mp4",
             "width": fmt.get("width") or info.get("width"), "height": fmt.get("height") or info.get("height"),
+            "http_headers": safe_source_headers(fmt.get("http_headers") or info.get("http_headers")),
             "referer": url, "origin": f"{urlparse(url).scheme}://{urlparse(url).netloc}",
         }
         # A timed signature makes the token portable between serverless instances
@@ -150,8 +171,17 @@ def extract():
         return jsonify(title=entry["title"], mime=entry["mime"], ext=entry["ext"], width=entry["width"], height=entry["height"],
                        preview=f"/api/media/{token}", download=f"/api/download/{token}", expiresIn=TTL_SECONDS)
     except Exception as exc:
-        app.logger.warning("Extraction failed (%s)", type(exc).__name__)
-        return jsonify(error="Could not extract this link. It may be private, region-limited, unsupported, or blocked by the platform."), 422
+        details = str(exc).lower()
+        if "not a bot" in details or "captcha" in details:
+            reason, message = "anti-bot", "The source is asking this server to verify it is not a bot. Try again later or use another public link."
+        elif "429" in details or "too many requests" in details:
+            reason, message = "rate-limited", "The source is temporarily rate-limiting requests. Please wait and try again."
+        elif "javascript" in details or "challenge" in details:
+            reason, message = "js-challenge", "This source requires a JavaScript runtime that is not available on the server."
+        else:
+            reason, message = "extractor", "Could not extract this link. It may be private, region-limited, unsupported, or blocked by the platform."
+        app.logger.warning("Extraction failed (%s; node_runtime=%s; reason=%s)", type(exc).__name__, bool(node_path), reason)
+        return jsonify(error=message), 422
 
 
 def proxy(token: str, attachment: bool = False):

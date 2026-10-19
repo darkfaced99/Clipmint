@@ -22,6 +22,8 @@ Only edit media that you own or are authorized to modify. Do not remove creator 
 
 Vercel Hobby is intended for personal, non-commercial use and has a maximum function duration of five minutes. Extraction and each media transfer must finish within that limit; slow or large transfers can time out.
 
+Full YouTube support also requires a supported JavaScript runtime in the backend environment: Node.js 22 or newer, or Deno 2.3 or newer. `requirements.txt` installs yt-dlp's official default extras, including its EJS challenge scripts, and `app.py` enables Node automatically when it is available on `PATH`. Other supported platforms remain subject to their own access restrictions.
+
 ## Install on devices
 
 - **Android:** open the production URL in Chrome and choose **Install app** or **Add to Home screen**.
@@ -40,5 +42,7 @@ python app.py
 ```
 
 Open `http://127.0.0.1:5000`. For local behavior that matches serverless token expiry, set `CLIPMINT_SECRET` in your shell before starting Flask.
+
+Install Node.js 22 or newer, or Deno 2.3 or newer, if you want full YouTube extraction locally. The app automatically uses Node when it is on `PATH`.
 
 Platform access restrictions and changes to source sites can affect extraction. Use media you are authorized to download and edit.

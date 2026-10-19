@@ -189,8 +189,41 @@
     $('#textSizeValue').value = $('#textSizeValue').textContent = '5.5%';
     $('#brushSizeValue').value = $('#brushSizeValue').textContent = '36 px';
   }
+  function showEditorDialog() {
+    if (editorDialog.hasAttribute('open')) return;
+    if (typeof editorDialog.showModal === 'function') {
+      try { editorDialog.showModal(); return; } catch (_) {}
+    }
+    editorDialog.classList.add('editor-fallback');
+    document.body.classList.add('editor-fallback-active');
+    editorDialog.setAttribute('open', '');
+    $('#closeEditor').focus();
+  }
+  function releaseEditorMedia() {
+    video.onloadedmetadata = null; video.onseeked = null; video.onplay = null; video.onpause = null;
+    video.onerror = null; video.ontimeupdate = null; video.onended = null;
+    image.onload = null; image.onerror = null;
+    video.pause(); video.removeAttribute('src'); video.load();
+    image.removeAttribute('src'); cancelAnimationFrame(state.animation);
+  }
+  function closeEditorDialog() {
+    if (state.recording && state.recorder?.state !== 'inactive') state.recorder.stop();
+    if (!editorDialog.hasAttribute('open')) return;
+    if (!editorDialog.classList.contains('editor-fallback') && typeof editorDialog.close === 'function') {
+      editorDialog.close(); return;
+    }
+    editorDialog.removeAttribute('open');
+    editorDialog.classList.remove('editor-fallback');
+    document.body.classList.remove('editor-fallback-active');
+    releaseEditorMedia(); $('#editButton').focus();
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && editorDialog.classList.contains('editor-fallback')) closeEditorDialog();
+  });
+
   async function openEditor() {
-    if (!state.media) return;
+    if (!state.media) { say('Parse a supported link first to load a media preview.', true); return; }
+    if (!state.media.preview) { say('This link did not return a preview stream. Parse it again or download the original.', true); return; }
     state.ratio = null; state.rotation = 0; state.flipX = false; state.look = 'original';
     state.brightness = 100; state.contrast = 100; state.saturation = 100; state.warmth = 0;
     state.text = ''; state.textColor = '#ffffff'; state.textSize = 5.5; state.textPosition = 'bottom'; state.textAlign = 'center'; state.font = 'system-ui,sans-serif'; state.outline = true; state.textBackground = false;
@@ -203,11 +236,12 @@
       state.kind = (state.media.mime || '').startsWith('image/') ? 'image' : 'video';
       const src = state.media.preview;
       if (state.kind === 'image') {
-        image.src = src; image.onload = () => { setCanvasSize(); render(); };
+        image.onload = () => { setCanvasSize(); render(); };
         image.onerror = () => say('The preview could not be loaded. Try saving the original.', true);
+        image.src = src;
         if (image.complete && image.naturalWidth) { setCanvasSize(); render(); }
       } else {
-        video.src = src; video.controls = true; video.playsInline = true;
+        video.controls = true; video.playsInline = true;
         $('#videoControls').classList.remove('hidden');
         video.onloadedmetadata = () => {
           setCanvasSize(); state.trimEnd = video.duration;
@@ -218,14 +252,15 @@
         video.onplay = () => { video.playbackRate = state.speed; cancelAnimationFrame(state.animation); animate(); $('#playButton').textContent = 'Pause preview'; };
         video.onpause = () => { cancelAnimationFrame(state.animation); render(); $('#playButton').textContent = 'Play preview'; };
         video.onerror = () => say('This browser cannot preview that stream. You can still download the original.', true);
+        video.src = src;
       }
       $('#videoControls').classList.toggle('hidden', state.kind !== 'video');
       $('#playButton').textContent = 'Play preview';
       $('#exportButton').textContent = state.kind === 'video' ? 'Export video' : 'Export image';
       $('#exportHint').textContent = state.kind === 'video' ? 'Video is recorded in real time with edits, trim, speed and source audio. MP4 or WebM depends on browser support.' : 'Export a new PNG with your crop, cleanup, text and look.';
       $('#editorNote').textContent = state.kind === 'video' ? 'Preview and export a trimmed, styled copy in this browser.' : 'Edit locally in this browser, then save a new image copy.';
-      $('#editorDialog').showModal();
-    } catch (error) { say('Could not open the media preview. Try saving the original.', true); }
+      showEditorDialog();
+    } catch (error) { say('Could not open the media preview. Refresh the page or try a current browser.', true); }
   }
   function samplePoint(event) {
     const rect = canvas.getBoundingClientRect();
@@ -319,8 +354,8 @@
       } else video.pause();
     } catch { say('Video playback was blocked. Try tapping play again.', true); }
   });
-  $('#closeEditor').addEventListener('click', () => { if (state.recording && state.recorder?.state !== 'inactive') state.recorder.stop(); editorDialog.close(); });
-  editorDialog.addEventListener('close', () => { video.pause(); video.removeAttribute('src'); video.load(); image.removeAttribute('src'); cancelAnimationFrame(state.animation); });
+  $('#closeEditor').addEventListener('click', closeEditorDialog);
+  editorDialog.addEventListener('close', releaseEditorMedia);
 
   document.querySelectorAll('[data-ratio]').forEach((button) => button.addEventListener('click', () => {
     state.ratio = button.dataset.ratio; document.querySelectorAll('[data-ratio]').forEach((el) => el.classList.toggle('active', el === button)); setCanvasSize(); render();
@@ -402,5 +437,9 @@
     setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     say('Your edited copy has been downloaded.');
   }
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    if (hadController) navigator.serviceWorker.addEventListener('controllerchange', () => say('A new ClipMint version is ready. Reopen the app when convenient.'));
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+  }
 })();

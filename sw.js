@@ -1,4 +1,4 @@
-const CACHE = 'clipmint-shell-v2';
+const CACHE = 'clipmint-shell-v3';
 const SHELL = ['/', '/manifest.json', '/app.js', '/icon.svg', '/apple-touch-icon.png'];
 const TAILWIND = 'https://cdn.tailwindcss.com/';
 

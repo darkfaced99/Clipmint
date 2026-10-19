@@ -22,6 +22,8 @@
     .press{transition:transform .12s ease,box-shadow .12s ease}.press:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}.press:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
     .focus-ring:focus{outline:3px solid var(--lime);outline-offset:3px}
     dialog{border:3px solid var(--ink);box-shadow:8px 8px 0 rgba(23,23,20,.9);padding:0;color:var(--ink);max-width:min(1240px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-radius:14px;background:var(--cream)}dialog::backdrop{background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
+    body.editor-fallback-active::before{content:"";position:fixed;inset:0;z-index:9998;background:rgba(24,24,21,.58);backdrop-filter:blur(2px)}
+    dialog.editor-fallback{display:block;position:fixed;inset:12px;margin:auto;z-index:9999;overflow-y:auto;max-height:calc(100dvh - 24px)}
     .tool.active{background:var(--lime)}#editorCanvas{display:block;width:100%;max-height:68vh;object-fit:contain;background:#191919;touch-action:none}
     .editor-group{border:2px solid var(--ink);border-radius:12px;padding:12px;background:#fff}
     .editor-group h3{margin:0 0 9px;font-size:11px;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
@@ -29,7 +31,7 @@
     .editor-range{width:100%;accent-color:#171714}
     .editor-select{width:100%;border:2px solid var(--ink);border-radius:8px;background:#fbfaf5;padding:7px 9px;font-weight:700}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:42vh}dialog{max-height:calc(100dvh - 12px);max-width:calc(100vw - 12px)}}
+    @media(max-width:640px){.hard{box-shadow:3px 3px 0 var(--ink)}#editorCanvas{max-height:42vh}dialog{max-height:calc(100dvh - 12px);max-width:calc(100vw - 12px)}dialog.editor-fallback{inset:6px;max-height:calc(100dvh - 12px)}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -147,6 +149,6 @@
       </div>
     </div>
   </dialog>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=3" defer></script>
 </body>
 </html>
