@@ -1,5 +1,5 @@
-const CACHE = 'clipmint-shell-v6';
-const SHELL = ['/', '/manifest.json', '/app.js', '/icon.svg', '/apple-touch-icon.png'];
+const CACHE = 'clipmint-shell-v7';
+const SHELL = ['/', '/manifest.json', '/app.js?v=6', '/icon.svg', '/apple-touch-icon.png'];
 const TAILWIND = 'https://cdn.tailwindcss.com/';
 
 self.addEventListener('install', event => {
@@ -33,7 +33,7 @@ self.addEventListener('fetch', event => {
     }).catch(() => caches.match('/')));
     return;
   }
-  if (SHELL.includes(url.pathname)) {
+  if (SHELL.some(path => new URL(path, self.location.origin).pathname === url.pathname)) {
     event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
       if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone()));
       return response;
