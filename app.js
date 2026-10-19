@@ -289,7 +289,7 @@
       };
       if (window.cv && window.cv.Mat) { settle(window.cv); return; }
       const script = document.createElement('script');
-      script.id = 'clipmint-opencv'; script.async = true; script.crossOrigin = 'anonymous';
+      script.id = 'clipmint-opencv'; script.async = true;
       script.src = 'https://docs.opencv.org/4.13.0/opencv.js';
       script.onload = () => {
         const candidate = window.cv;
