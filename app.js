@@ -263,10 +263,14 @@
         video.onloadedmetadata = () => {
           setCanvasSize(); state.trimEnd = video.duration;
           $('#trimEnd').value = Number.isFinite(video.duration) ? video.duration.toFixed(1) : '0';
-          render();
-          if (video.readyState < 2 && Number.isFinite(video.duration) && video.duration > 0) {
-            try { video.currentTime = Math.min(.05, video.duration / 2); } catch (_) {}
+          drawLoadingPreview();
+          if (Number.isFinite(video.duration) && video.duration > 0) {
+            const firstFrameTime = Math.min(.05, video.duration / 2);
+            if (Math.abs(video.currentTime - firstFrameTime) > .001) {
+              try { video.currentTime = firstFrameTime; return; } catch (_) {}
+            }
           }
+          render();
         };
         video.onloadeddata = () => render();
         video.oncanplay = () => render();
