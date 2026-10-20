@@ -6,7 +6,7 @@ Live app: [clipmint-sigma.vercel.app](https://clipmint-sigma.vercel.app)
 
 ## Current release and PWA cache
 
-The current service-worker shell cache is `clipmint-shell-v7`. The frontend script URL is `/app.js?v=6`; the script query string and service-worker cache name are separate cache-busting versions. When changing the frontend script, update its query string in `index.html` and `sw.js`. When changing the precached shell or service-worker behavior, increment the cache name in `sw.js` so installed clients fetch the new shell.
+The current service-worker shell cache is `clipmint-shell-v8`. The frontend script URL is `/app.js?v=7`; the script query string and service-worker cache name are separate cache-busting versions. The shell includes the 192×192 and 512×512 PNG install icons as well as the SVG and iOS icon. When changing the frontend script, update its query string in `index.html` and `sw.js`. When changing the precached shell or service-worker behavior, increment the cache name in `sw.js` so installed clients fetch the new shell.
 
 ## Editor features
 

@@ -365,6 +365,24 @@
     if (video.currentTime < state.trimStart || video.currentTime > state.trimEnd) video.currentTime = state.trimStart;
   }
 
+  function seekVideoForExport(time) {
+    if (Math.abs(video.currentTime - time) < .001) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let timer;
+      const cleanup = () => {
+        clearTimeout(timer);
+        video.removeEventListener('seeked', onSeeked);
+        video.removeEventListener('error', onError);
+      };
+      const onSeeked = () => { cleanup(); resolve(); };
+      const onError = () => { cleanup(); reject(new Error('The video could not seek to the trim start.')); };
+      video.addEventListener('seeked', onSeeked);
+      video.addEventListener('error', onError);
+      timer = setTimeout(() => { cleanup(); reject(new Error('The video seek timed out. Try again after previewing the video.')); }, 15000);
+      try { video.currentTime = time; } catch (error) { cleanup(); reject(error); }
+    });
+  }
+
   parseButton.addEventListener('click', parseUrl);
   urlInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') parseUrl(); });
   $('#editButton').addEventListener('click', openEditor);
@@ -403,7 +421,7 @@
     state.ratio = null; state.rotation = 0; state.flipX = false; state.look = 'original';
     state.brightness = 100; state.contrast = 100; state.saturation = 100; state.warmth = 0;
     state.text = ''; state.textColor = '#ffffff'; state.textSize = 5.5; state.textPosition = 'bottom'; state.textAlign = 'center'; state.font = 'system-ui,sans-serif'; state.outline = true; state.textBackground = false;
-    state.brush = false; state.strokes = []; state.cleanupApplied = false; state.lastInpaintTime = -1; state.trimStart = 0; state.speed = 1;
+    state.brush = false; state.brushSize = 36; state.strokes = []; state.cleanupApplied = false; state.lastInpaintTime = -1; state.trimStart = 0; state.speed = 1;
     resetControls(); document.querySelectorAll('[data-ratio],[data-look]').forEach((el) => el.classList.remove('active'));
     if (state.kind === 'video') { video.playbackRate = 1; video.currentTime = 0; if (Number.isFinite(video.duration)) { state.trimEnd = video.duration; $('#trimEnd').value = video.duration.toFixed(1); } }
     canvas.style.cursor = 'default'; setCanvasSize(); render(); cleanupSay('Edits and cleanup marks reset.');
@@ -425,13 +443,14 @@
     let stream;
     const oldRate = video.playbackRate;
     try {
-      video.pause(); video.currentTime = state.trimStart;
-      await new Promise((resolve, reject) => { if (Math.abs(video.currentTime - state.trimStart) < .05) resolve(); else { video.onseeked = resolve; video.onerror = reject; } });
+      video.pause(); await seekVideoForExport(state.trimStart);
       video.playbackRate = state.speed; await video.play();
       const captureStream = canvas.captureStream(30);
       const tracks = [...captureStream.getVideoTracks()];
       const mediaCapture = video.captureStream ? video.captureStream() : (video.mozCaptureStream ? video.mozCaptureStream() : null);
-      if (mediaCapture) tracks.push(...mediaCapture.getAudioTracks());
+      const audioTracks = mediaCapture?.getAudioTracks() || [];
+      tracks.push(...audioTracks);
+      mediaCapture?.getVideoTracks().forEach((track) => track.stop());
       stream = new MediaStream(tracks);
       const chunks = [], recorder = new MediaRecorder(stream, { mimeType: supported, videoBitsPerSecond: 5_000_000 });
       state.recorder = recorder;
@@ -445,11 +464,12 @@
       video.ontimeupdate = () => { if (video.currentTime >= state.trimEnd && recorder.state !== 'inactive') { video.pause(); recorder.stop(); } };
       video.onended = () => { if (recorder.state !== 'inactive') recorder.stop(); };
       recorder.start(1000);
-      say(`Recording trimmed video with edits and audio in ${supported.includes('mp4') ? 'MP4' : 'WebM'} at ${state.speed}×. Keep this tab open…`);
+      const audioStatus = audioTracks.length ? 'with source audio' : 'without a captured audio track';
+      say(`Recording trimmed video ${audioStatus} in ${supported.includes('mp4') ? 'MP4' : 'WebM'} at ${state.speed}×. Keep this tab open…`);
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop()); state.recording = false; state.recorder = null;
-      button.disabled = false; button.textContent = 'Export video'; video.playbackRate = oldRate;
-      say('Video export could not start. Press play once to allow playback, then try again.', true);
+      button.disabled = false; button.textContent = 'Export video'; video.pause(); video.playbackRate = oldRate; render();
+      say(error.message || 'Video export could not start. Press play once to allow playback, then try again.', true);
     }
   });
 

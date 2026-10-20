@@ -1,5 +1,5 @@
-const CACHE = 'clipmint-shell-v7';
-const SHELL = ['/', '/manifest.json', '/app.js?v=6', '/icon.svg', '/apple-touch-icon.png'];
+const CACHE = 'clipmint-shell-v8';
+const SHELL = ['/', '/manifest.json', '/app.js?v=7', '/icon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 const TAILWIND = 'https://cdn.tailwindcss.com/';
 
 self.addEventListener('install', event => {

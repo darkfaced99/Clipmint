@@ -45,14 +45,39 @@ def public_http_url(url: str) -> bool:
         return False
 
 
+def is_visual_format(fmt: dict[str, Any], fallback_mime: str | None = None) -> bool:
+    mime = str(fmt.get("mime_type") or fallback_mime or "").lower()
+    if mime.startswith("image/"):
+        return True
+    if fmt.get("vcodec") == "none":
+        return False
+    return bool(fmt.get("vcodec")) or mime.startswith("video/")
+
+
+def normalized_header_url(value: str, origin_only: bool = False) -> str | None:
+    try:
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+            return None
+        if origin_only:
+            host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+            port = parsed.port
+            if port and port != (443 if parsed.scheme == "https" else 80):
+                host = f"{host}:{port}"
+            return f"{parsed.scheme}://{host}"
+        return parsed._replace(query="", fragment="").geturl()
+    except ValueError:
+        return None
+
+
 def choose_format(info: dict[str, Any]) -> dict[str, Any] | None:
     # extract_info returns the requested, selector-chosen stream at the top level.
     # Respect it so the H.264/AAC MP4 preference below is not replaced by a
     # separately listed higher-resolution format.
-    if info.get("url"):
+    if info.get("url") and is_visual_format(info, info.get("mime_type")):
         return info
     formats = info.get("formats") or []
-    candidates = [f for f in formats if f.get("url") and f.get("vcodec") != "none"]
+    candidates = [f for f in formats if f.get("url") and is_visual_format(f, info.get("mime_type"))]
     # Prefer a format with audio, then higher resolution; avoid separate video-only streams.
     candidates.sort(key=lambda f: (f.get("acodec") not in (None, "none"), f.get("height") or 0, f.get("tbr") or 0), reverse=True)
     return candidates[0] if candidates else None
@@ -69,6 +94,12 @@ def safe_source_headers(value: Any) -> dict[str, str]:
             continue
         text = str(item).strip()
         if text and "\r" not in text and "\n" not in text:
+            if canonical == "Referer":
+                text = normalized_header_url(text) or ""
+            elif canonical == "Origin":
+                text = normalized_header_url(text, origin_only=True) or ""
+            if not text:
+                continue
             headers[canonical] = text
     return headers
 
@@ -78,9 +109,13 @@ def media_headers(entry: dict[str, Any]) -> dict[str, str]:
     headers.setdefault("User-Agent", USER_AGENT)
     headers.setdefault("Accept-Encoding", "identity")
     if entry.get("referer"):
-        headers.setdefault("Referer", entry["referer"])
+        referer = normalized_header_url(str(entry["referer"]))
+        if referer:
+            headers.setdefault("Referer", referer)
     if entry.get("origin"):
-        headers.setdefault("Origin", entry["origin"])
+        origin = normalized_header_url(str(entry["origin"]), origin_only=True)
+        if origin:
+            headers.setdefault("Origin", origin)
     return headers
 
 
@@ -102,6 +137,16 @@ def frontend_script():
 @app.get("/icon.svg")
 def icon_svg():
     return Response('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="3" y="3" width="58" height="58" rx="14" fill="#a8e6cf" stroke="#171714" stroke-width="5"/><path d="M19 12h20l10 10v29H19a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4Z" fill="#fff" stroke="#171714" stroke-width="4" stroke-linejoin="round"/><path d="M37 13v10h10M23 34h22M23 42h15" fill="none" stroke="#171714" stroke-width="4" stroke-linecap="round"/><circle cx="46" cy="47" r="8" fill="#c8ef70" stroke="#171714" stroke-width="3"/></svg>''', mimetype="image/svg+xml")
+
+
+@app.get("/icon-192.png")
+def icon_192():
+    return send_file("icon-192.png", mimetype="image/png")
+
+
+@app.get("/icon-512.png")
+def icon_512():
+    return send_file("icon-512.png", mimetype="image/png")
 
 
 @app.get("/apple-touch-icon.png")
@@ -153,7 +198,7 @@ def extract():
             info = next((item for item in info["entries"] if item), {})
         fmt = choose_format(info)
         if not fmt or not fmt.get("url"):
-            return jsonify(error="No playable media stream was found for that link."), 422
+            return jsonify(error="No playable video stream was found for that link. Audio-only links are not supported."), 422
         raw_url = fmt["url"]
         if not public_http_url(raw_url):
             return jsonify(error="The source returned an unsupported stream address."), 422
@@ -208,8 +253,14 @@ def proxy(token: str, attachment: bool = False):
             destination = upstream.headers.get("Location")
             upstream.close()
             if not destination:
-                return jsonify(error="The media source returned an invalid redirect."), 502
-            target = urljoin(target, destination)
+                return jsonify(error="The source returned an invalid redirect."), 502
+            next_target = urljoin(target, destination)
+            previous = urlparse(target)
+            following = urlparse(next_target)
+            if (previous.scheme, previous.hostname, previous.port) != (following.scheme, following.hostname, following.port):
+                headers.pop("Referer", None)
+                headers.pop("Origin", None)
+            target = next_target
         if upstream is None or upstream.status_code in (301, 302, 303, 307, 308):
             if upstream is not None:
                 upstream.close()
